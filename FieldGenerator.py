@@ -42,6 +42,7 @@ class Polynom:
 	def __getitem__(self, i):
 		return self.coeffs[i] if i <= self.degree() else 0
 
+	# ~ O(max(degree(self),degree(other)))
 	def __add__(self, other):
 		n = max(self.degree(), other.degree())
 		new_coeffs = []
@@ -62,6 +63,7 @@ class Polynom:
 		elif isinstance(other, int):
 			return self.scale(other)
 
+	# ~ O((degree(self)+degree(other))^2)
 	def polynom_mul(self, other):
 		a = self.degree()
 		b = other.degree()
@@ -87,6 +89,8 @@ class Polynom:
 			self.coeffs[i] = (self.coeffs[i] * scalar) % self.P
 		return self
 
+	# ~ O((n-m)*m)
+	# where n = degree(self), m = degree(other)
 	def __mod__(self, other):
 		# print(self, "%", other)
 
@@ -240,7 +244,6 @@ class Field:
 
 		self.plot()
 
-
 	def find_field(self):
 		# has to be of degree n
 		# has to divide x^(p^n)-x
@@ -265,37 +268,32 @@ class Field:
 		# print(self.f)
 		# print(self.elems, len(self.elems))
 
+	# ~ O((p^n)(p^n+1)/2 * 6n^2) = O(3 * p^(2n) * n^2)
 	def calculate_tables(self):
 		for (i,x) in enumerate(self.elems):
 			self.numbers[x] = i
 
 		count = 0
-		total = pow(self.P, self.N * 2)
+		total = int(len(self.elems) * (len(self.elems)+1)  / 2)
 		for (i,x) in enumerate(self.elems):
 			for (j,y) in enumerate(self.elems):
-				r = (x * y) % self.f
-				s = (x + y) % self.f
-				self.multiplication[i][j] = self.numbers[r]
-				self.addition[i][j] = self.numbers[s]
+				if i < j:
+					continue
+				r = (x * y) % self.f # ~ O((2n)^2) + O((2n-n)*n) = O(5n^2)
+				s = (x + y) % self.f # ~ O(n) + O((2n-n)*n) = O(n^2)
+
+				rn = self.numbers[r]
+				sn = self.numbers[s]
+
+				self.multiplication[i][j] = rn
+				self.multiplication[j][i] = rn
+				self.addition[i][j] = sn
+				self.addition[j][i] = sn
 				count += 1
-				sys.stdout.write(f"{count}/{total} operations done...")
-				sys.stdout.flush()
+				sys.stdout.write(f"{count}/{total} ({round(100* count/total)}%) operations done...\r")
 
 
-
-		# for (i,x) in enumerate(self.elems):
-		# 	print(x, ",\thash:", hash(x), ",\tnum:", self.numbers[x])
-
-		# n = pow(P,N)
-		# if labels:
-		# 	for i in range(0, n):
-		# 		for j in range(0, n):
-		# 			a = self.addition[i][j]
-		# 			m = self.multiplication[i][j]
-		# 			ax[I][N].text(i, j, str(int(a)), va='center', ha='center')
-		# 			ax[J][N].text(i, j, str(int(m)), va='center', ha='center')
-
-	def plot(self):
+	def plot(self, labels = False):
 		P = self.P
 		N = self.N
 
@@ -306,11 +304,23 @@ class Field:
 		# ax0 = fig.add_subplot(gj[0])
 		# ax1 = fig.add_subplot(gj[1])
 
-		ax0.matshow(self.addition, cmap=plt.cm.Blues)
-		ax1.matshow(self.multiplication, cmap=plt.cm.Blues)
+		ax0.matshow(self.addition) # , cmap=plt.cm.Blues
+		ax1.matshow(self.multiplication)
 
 		ax0.set_title('+',y=1.1)
 		ax1.set_title('*', y=1.1)
+
+		# for (i,x) in enumerate(self.elems):
+		# 	print(x, ",\thash:", hash(x), ",\tnum:", self.numbers[x])
+
+		n = pow(P,N)
+		if labels:
+			for i in range(0, n):
+				for j in range(0, n):
+					a = self.addition[i][j]
+					m = self.multiplication[i][j]
+					ax0.text(i, j, str(int(a)), va='center', ha='center')
+					ax1.text(i, j, str(int(m)), va='center', ha='center')
 
 		plt.show()
 
@@ -373,12 +383,17 @@ class Field:
 				self.find_all_normed_polynoms_of_degree(d-1, f, a)
 
 			
+
+	# all normed polynoms f of degree n are checked ~ p^n
+	# check if x^(p^n)-x is divisible by f ~ O((p^n-n)*n)
+	# check if f is irreducible, all normed polynoms of degree d | n are checked ~ sum(p^d*(n-d)*d: d|n)
+	# theorethical worst case ~ O(p^n * p^n * n * n/2 * p^(n/2) * n^2 /2)
+	# but much faster in reality
 	def find_irreducible_polynom(self, i, q, f):
 		P = self.P
 		if i == 0:
 			for k in range(0, P):
 				f.coeffs[i] = k
-				# print("f:", f, f.degree(), ", r:", q % f)
 				if q.is_divisible_by(f):
 					if self.is_irreducible(f):
 						self.f = f
@@ -406,32 +421,6 @@ class Field:
 		return True
 
 
-# all normed polynoms f of degree n are checked ~ p^n
-# check if x^(p^n)-x is divisible by f ~ degree(x^(p^n)-x) = p^n
-# check if f is irreducible, all normed polynoms of degree d | n are checked ~ sum(p^d * d: d|n)
-
-# so ~ O(p^(2n)* d * p^d) < O(n/2 * p^(2n + n /2)), worsed case
-# where d is greatest divisor of n
-# e.g. n=4, p=5:  ~ O(2*5^(10)) = O(10^7)
-
-
-# n = 3
-# ps = [2, 3]
-
-# fig = plt.figure()
-# gs0 = fig.add_gridspec(1, len(ps))
-
-# for (i,p) in enumerate(ps):
-# 	gp = gs0[i].subgridspec(n, 1)
-
-# 	for j in range(1, n):
-# 		gj = gp[j].subgridspec(1,2)
-# 		Field(N=j, P=p)
-
 Field(N=N,P=P)
 
-# f = Polynom("1x^0 + 1x^1 + 1x^4", P)
-# g = Polynom("-1x^1 + 1x^2401", P)
-
-# print(g % f)
 
