@@ -286,8 +286,6 @@ class Field:
 
 		self.find_all_normed_polynoms_of_degree(N-1, h, self.elems)
 
-		# print(self.f)
-		# print(self.elems, len(self.elems))
 
 	# ~ O((p^n)(p^n+1)/2 * 6n^2) = O(3 * p^(2n) * n^2)
 	def calculate_tables(self, multi_thread=True):
@@ -310,7 +308,7 @@ class Field:
 
 			t1 = time.time()
 
-			print(t1-t0)
+			print(f"parameter generated: {t1-t0}s")
 
 			res = pool.map(self.calculate, params)
 
