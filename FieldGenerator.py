@@ -234,6 +234,7 @@ class Field:
 
 		self.addition = np.zeros((n,n))
 		self.multiplication = np.zeros((n,n))
+		self.orders = np.zeros(n)
 
 		t0 = time.time()
 
@@ -242,6 +243,7 @@ class Field:
 		try:
 			self.addition = np.loadtxt(f"cache/{P}^{N}_add.txt")
 			self.multiplication = np.loadtxt(f"cache/{P}^{N}_mul.txt")
+			self.orders = np.loadtxt(f"cache/{P}^{N}_ord.txt")
 			tables_loaded = True
 		except:
 			pass
@@ -254,8 +256,11 @@ class Field:
 
 		if not tables_loaded:
 			self.calculate_tables()
+			self.calculate_orders()
 			t2 = time.time()
 			print(f"calculated tables: {t2-t1}")
+
+		self.find_primitve_element()
 
 		t3 = time.time()
 		print(f"total time: {t3-t0}s")
@@ -285,6 +290,9 @@ class Field:
 		hs[N-1] = 1
 		h = Polynom(hs, P)
 
+		# DO NOT ALTER ONCE SET
+		# ENUMERATE IS HANDY
+		# numbers[elems[i]] = i
 		self.find_all_normed_polynoms_of_degree(N-1, h, self.elems)
 
 
@@ -374,6 +382,7 @@ class Field:
 	def save_to_csv(self):
 		np.savetxt(f"cache/{self.P}^{self.N}_add.txt", self.addition, fmt='%i')
 		np.savetxt(f"cache/{self.P}^{self.N}_mul.txt", self.multiplication, fmt='%i')
+		np.savetxt(f"cache/{self.P}^{self.N}_ord.txt", self.orders, fmt='%i')
 
 	def plot(self, labels = False):
 		P = self.P
@@ -381,13 +390,13 @@ class Field:
 
 		fig, (ax0, ax1) = plt.subplots(1, 2, constrained_layout=True)
 
-		fig.suptitle(r"$F_{" + str(pow(P,N)) + r"} = F_{" + f"{P}^{N}"  + r"} \cong \mathbb{Z}_{" + str(P) + r"} / (" + str(self.f) + ")$", fontsize=20, fontweight='bold')
+		fig.suptitle(r"$F_{" + str(pow(P,N)) + r"} = F_{" + f"{P}^{N}"  + r"} \cong \mathbb{Z}_{" + str(P) + r"}[x] / (" + str(self.f) + ")$", fontsize=20, fontweight='bold')
 		
 		# ax0 = fig.add_subplot(gj[0])
 		# ax1 = fig.add_subplot(gj[1])
 
-		ax0.matshow(self.addition) # , cmap=plt.cm.Blues
-		ax1.matshow(self.multiplication)
+		ax0.matshow(self.addition, cmap=plt.cm.Blues) # 
+		ax1.matshow(self.multiplication, cmap=plt.cm.Blues)
 
 		ax0.set_title('+',y=1.1)
 		ax1.set_title('*', y=1.1)
@@ -500,6 +509,46 @@ class Field:
 					return False
 
 		return True
+
+	def find_primitve_element(self):
+		elem = None
+		order = 0
+		for (i,x) in enumerate(self.elems):
+			o = self.orders[i]
+			if o > order:
+				elem = x
+				order = o
+
+		print(f"primitive element: {i} = {elem}")
+
+		j = i
+		for n in range(2, len(self.elems)):
+			j = int(self.multiplication[j][i])
+			print(f"({elem})^{n}\t=\t{self.elems[j]}\t=\t{j}")
+
+
+
+	def calculate_orders(self):
+		pool = Pool(os.cpu_count())
+		res = pool.map(self.calculate_order, enumerate(self.elems))
+		pool.close()
+
+		for (x,n) in res:
+			self.orders[x] = n
+
+
+	def calculate_order(self, params):
+		(i,x) = params
+		if hash(x) == 1:
+			return (i,1)
+
+		y = i
+		for n in range(2,len(self.elems)):
+			y = int(self.multiplication[y][i])
+			if y == 1:
+				return (i, n)
+		return (i, 0)
+
 
 if __name__ == '__main__':
 	Field(N=N,P=P)
