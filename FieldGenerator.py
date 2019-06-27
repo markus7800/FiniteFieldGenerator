@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-P = int(input("prime number: "))
-N = int(input("natural number: "))
+P = 7 #int(input("prime number: "))
+N = 4 #int(input("natural number: "))
 
 import copy
 import string
@@ -102,36 +102,27 @@ class Polynom:
 
 	def __mod__(self, other):
 
-		f = self
 		P = self.P
-		n = f.degree()
+		n = self.degree()
 		m = other.degree()
 
-		# # TODO: make efficient
-		# while n >= m:
-		# 	print(n)
-		# 	a = f[n]
+		b = inv(other[m],P)
 
-		# 	q = other * Polynom(f"1x^{n-m}", P)
-		# 	q = q.scale(a * inv(b, P))
+		while n >= m:
+			a = self[n]
+			new_n = n
+			uneq0 = False 
+			for i in range(n,n-m-1, -1):
+				self.coeffs[i] = (self.coeffs[i] - a*b*other[i-(n-m)]) % P
 
-		# 	q.scale(a * inv(b, P))
-		# 	f = f - q
-		# 	f.prune()
-		# 	n = f.degree()
-
-		# return f
-
-		if n < m: return self
-
-		a = self[n]
-		b = other[m]
-
-		q = other * Polynom(f"1x^{n-m}", self.P)
-		q = q.scale(a * inv(b,self.P))
+				if self.coeffs[i] == 0 and not uneq0:
+					new_n = new_n-1
+				else:
+					uneq0 = True # as long as the coeff is 0 we decrease the degree
+			n = new_n
 
 		# cancel highest coeff as long as m <= n
-		return (self - q) % other
+		return self.prune()
 
 	def is_divisible_by(self, other):
 		return (self % other).degree() == -1
@@ -422,10 +413,10 @@ class Field:
 # 		gj = gp[j].subgridspec(1,2)
 # 		Field(N=j, P=p)
 
-Field(N=N,P=P)
+# Field(N=N,P=P)
 
-# f = Polynom("1x^0 + 1x^1 + 1x^4", P)
-# g = Polynom("-1x^1 + 1x^2401", P)
+f = Polynom("1x^0 + 1x^1 + 1x^4", P)
+g = Polynom("-1x^1 + 1x^2401", P)
 
-# print(g % f)
+print(g % f)
 
