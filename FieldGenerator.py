@@ -260,7 +260,7 @@ class Field:
 		t3 = time.time()
 		print(f"total time: {t3-t0}s")
 
-		if tables_loaded:
+		if not tables_loaded:
 			self.save_to_csv()
 
 		self.plot()
