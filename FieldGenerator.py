@@ -275,7 +275,9 @@ class Field:
 
 		count = 0
 		total = int(len(self.elems) * (len(self.elems)+1)  / 2)
+		t0 = time.time()
 		for (i,x) in enumerate(self.elems):
+			eta = None
 			for (j,y) in enumerate(self.elems):
 				if i < j:
 					continue
@@ -290,7 +292,13 @@ class Field:
 				self.addition[i][j] = sn
 				self.addition[j][i] = sn
 				count += 1
-				sys.stdout.write(f"{count}/{total} ({round(100* count/total)}%) operations done...\r")
+				progress = round(100* count/total)
+				sys.stdout.write(f"{count}/{total} ({progress}%) operations done..., eta: {eta}s.          \r")
+
+			t = time.time() - t0
+			progress = round(100* count/total)
+			eta = round(t / (progress+0.001) * 100 - t)
+			sys.stdout.write(f"{count}/{total} ({progress}%) operations done..., eta: {eta}s.          \r")
 
 
 	def plot(self, labels = False):
