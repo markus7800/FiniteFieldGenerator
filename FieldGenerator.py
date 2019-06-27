@@ -9,6 +9,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import sys
+from multiprocessing import Pool
+import os
+import itertools
+from multiprocessing import sharedctypes
 
 class Polynom:
 
@@ -226,23 +230,40 @@ class Field:
 		self.elems = []
 		self.symbols = dict()
 		self.numbers = dict()
-		self.addition = np.zeros((pow(P,N),pow(P,N)))
-		self.multiplication = np.zeros((pow(P,N),pow(P,N)))
+		n = pow(P,N)
 
+		self.addition = np.zeros((n,n))
+		self.multiplication = np.zeros((n,n))
 
 		t0 = time.time()
+
+		tables_loaded = False
+
+		try:
+			self.addition = np.loadtxt(f"cache/{P}^{N}_add.txt")
+			self.multiplication = np.loadtxt(f"cache/{P}^{N}_mul.txt")
+			tables_loaded = True
+		except:
+			pass
+
 
 		self.find_field()
 
 		t1 = time.time()
 		print(f"found polynomial: {t1-t0}s")
 
-		self.calculate_tables()
-		t2 = time.time()
-		print(f"calculated tables: {t2-t1}")
-		print(f"total time: {t2-t0}s")
+		if not tables_loaded:
+			self.calculate_tables()
+			t2 = time.time()
+			print(f"calculated tables: {t2-t1}")
+
+		t3 = time.time()
+		print(f"total time: {t3-t0}s")
+
+		self.save_to_csv()
 
 		self.plot()
+
 
 	def find_field(self):
 		# has to be of degree n
@@ -269,12 +290,39 @@ class Field:
 		# print(self.elems, len(self.elems))
 
 	# ~ O((p^n)(p^n+1)/2 * 6n^2) = O(3 * p^(2n) * n^2)
-	def calculate_tables(self, multi_thread=False):
+	def calculate_tables(self, multi_thread=True):
 		for (i,x) in enumerate(self.elems):
 			self.numbers[x] = i
 
 		if multi_thread:
-			pass
+			pool = Pool(os.cpu_count())
+			domain = itertools.product(enumerate(self.elems), enumerate(self.elems))
+
+			t0 = time.time()
+
+			def predicate(t):
+				(i,x), (j,y) = t
+				return i >= j
+
+			params = list(filter(predicate, domain))
+
+			total = len(params)
+
+			t1 = time.time()
+
+			print(t1-t0)
+
+			res = pool.map(self.calculate, params)
+
+			pool.close()
+
+			for (i,j,rn, sn) in res:
+				self.multiplication[i][j] = rn
+				self.multiplication[j][i] = rn
+				self.addition[i][j] = sn
+				self.addition[j][i] = sn
+
+
 		else:
 			count = 0
 			total = int(len(self.elems) * (len(self.elems)+1)  / 2)
@@ -284,32 +332,49 @@ class Field:
 				for (j,y) in enumerate(self.elems):
 					if i < j:
 						continue
-					self.calculate(i,x,j,y)
+					self.calculate(((i,x),(j,y)))
 					count += 1
 					self.print_progress(count, total, t0)
 
 
-	def calculate(self, i, x, j, y):
+	def calculate(self, params):
+		(i,x), (j,y) = params
+
 		r = (x * y) % self.f # ~ O((2n)^2) + O((2n-n)*n) = O(5n^2)
 		s = (x + y) % self.f # ~ O(n) + O((2n-n)*n) = O(n^2)
 
 		rn = self.numbers[r]
 		sn = self.numbers[s]
 
-		self.multiplication[i][j] = rn
-		self.multiplication[j][i] = rn
-		self.addition[i][j] = sn
-		self.addition[j][i] = sn
+		# print(i,j,rn,sn, self)
+		return (i,j,rn,sn)
+
+	def calculate_multi(self, params):
+		tmp0 = np.ctypeslib.as_array(self.shared_array0)
+		tmp1 = np.ctypeslib.as_array(self.shared_array1)
+
+		(i,x), (j,y) = params
+
+		r = (x * y) % self.f # ~ O((2n)^2) + O((2n-n)*n) = O(5n^2)
+		s = (x + y) % self.f # ~ O(n) + O((2n-n)*n) = O(n^2)
+
+		rn = self.numbers[r]
+		sn = self.numbers[s]
+
+		tmp0[i][j] = rn
+		tmp0[j][i] = rn
+		tmp1[i][j] = sn
+		tmp1[j][i] = sn
 
 	def print_progress(self, count, total, t0):
-		t = time.time() - t0
+		# t = time.time() - t0
 		progress = round(100* count/total)
-		eta = round(t / (progress+0.001) * 100 - t)
-		sys.stdout.write(f"{count}/{total} ({progress}%) operations done..., eta: {eta}s.          \r")
+		# eta = round(t / (progress+0.001) * 100 - t)
+		sys.stderr.write(f"{count}/{total} ({progress}%) operations done...\r")
 
 	def save_to_csv(self):
-		np.savetxt(f"{self.P}^{self.N}_add.csv", self.addition, delimiter=",")
-		np.savetxt(f"{self.P}^{self.N}_mul.csv", self.multiplication, delimiter=",")
+		np.savetxt(f"cache/{self.P}^{self.N}_add.txt", self.addition, fmt='%i')
+		np.savetxt(f"cache/{self.P}^{self.N}_mul.txt", self.multiplication, fmt='%i')
 
 	def plot(self, labels = False):
 		P = self.P
@@ -392,7 +457,6 @@ class Field:
 		if d == 0:
 			for k in range(0, P):
 				f.coeffs[d] = k
-
 				a.append(copy.deepcopy(f).prune())
 
 		else:
@@ -438,7 +502,7 @@ class Field:
 
 		return True
 
-
-Field(N=N,P=P)
+if __name__ == '__main__':
+	Field(N=N,P=P)
 
 
