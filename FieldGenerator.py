@@ -269,37 +269,47 @@ class Field:
 		# print(self.elems, len(self.elems))
 
 	# ~ O((p^n)(p^n+1)/2 * 6n^2) = O(3 * p^(2n) * n^2)
-	def calculate_tables(self):
+	def calculate_tables(self, multi_thread=False):
 		for (i,x) in enumerate(self.elems):
 			self.numbers[x] = i
 
-		count = 0
-		total = int(len(self.elems) * (len(self.elems)+1)  / 2)
-		t0 = time.time()
-		for (i,x) in enumerate(self.elems):
-			eta = None
-			for (j,y) in enumerate(self.elems):
-				if i < j:
-					continue
-				r = (x * y) % self.f # ~ O((2n)^2) + O((2n-n)*n) = O(5n^2)
-				s = (x + y) % self.f # ~ O(n) + O((2n-n)*n) = O(n^2)
+		if multi_thread:
+			pass
+		else:
+			count = 0
+			total = int(len(self.elems) * (len(self.elems)+1)  / 2)
+			t0 = time.time()
+			for (i,x) in enumerate(self.elems):
+				eta = None
+				for (j,y) in enumerate(self.elems):
+					if i < j:
+						continue
+					self.calculate(i,x,j,y)
+					count += 1
+					self.print_progress(count, total, t0)
 
-				rn = self.numbers[r]
-				sn = self.numbers[s]
 
-				self.multiplication[i][j] = rn
-				self.multiplication[j][i] = rn
-				self.addition[i][j] = sn
-				self.addition[j][i] = sn
-				count += 1
-				progress = round(100* count/total)
-				sys.stdout.write(f"{count}/{total} ({progress}%) operations done..., eta: {eta}s.          \r")
+	def calculate(self, i, x, j, y):
+		r = (x * y) % self.f # ~ O((2n)^2) + O((2n-n)*n) = O(5n^2)
+		s = (x + y) % self.f # ~ O(n) + O((2n-n)*n) = O(n^2)
 
-			t = time.time() - t0
-			progress = round(100* count/total)
-			eta = round(t / (progress+0.001) * 100 - t)
-			sys.stdout.write(f"{count}/{total} ({progress}%) operations done..., eta: {eta}s.          \r")
+		rn = self.numbers[r]
+		sn = self.numbers[s]
 
+		self.multiplication[i][j] = rn
+		self.multiplication[j][i] = rn
+		self.addition[i][j] = sn
+		self.addition[j][i] = sn
+
+	def print_progress(self, count, total, t0):
+		t = time.time() - t0
+		progress = round(100* count/total)
+		eta = round(t / (progress+0.001) * 100 - t)
+		sys.stdout.write(f"{count}/{total} ({progress}%) operations done..., eta: {eta}s.          \r")
+
+	def save_to_csv(self):
+		np.savetxt(f"{self.P}^{self.N}_add.csv", self.addition, delimiter=",")
+		np.savetxt(f"{self.P}^{self.N}_mul.csv", self.multiplication, delimiter=",")
 
 	def plot(self, labels = False):
 		P = self.P
