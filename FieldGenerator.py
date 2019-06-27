@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-P = 7 #int(input("prime number: "))
-N = 4 #int(input("natural number: "))
+P = int(input("prime number: "))
+N = int(input("natural number: "))
 
 import copy
 import string
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import sys
 
 class Polynom:
 
@@ -55,20 +56,6 @@ class Polynom:
 
 		return Polynom(list(reversed(new_coeffs)), self.P)
 
-	def __sub__(self, other):
-		n = max(self.degree(), other.degree())
-		new_coeffs = []
-
-		# start at highest degree
-		for i in range(n,-1,-1):
-			c = (self[i] - other[i]) % self.P
-			if c == 0 and len(new_coeffs) == 0:
-				continue
-			else:
-				new_coeffs.append(c)
-
-		return Polynom(list(reversed(new_coeffs)), self.P)
-
 	def __mul__(self, other):
 		if isinstance(other, self.__class__):
 			return self.polynom_mul(other)
@@ -101,28 +88,34 @@ class Polynom:
 		return self
 
 	def __mod__(self, other):
+		# print(self, "%", other)
+
+		f = copy.deepcopy(self)
 
 		P = self.P
-		n = self.degree()
+		n = f.degree()
 		m = other.degree()
 
 		b = inv(other[m],P)
 
+		# cancel highest coeff as long as m <= n
 		while n >= m:
-			a = self[n]
+			a = f[n]
 			new_n = n
 			uneq0 = False 
 			for i in range(n,n-m-1, -1):
-				self.coeffs[i] = (self.coeffs[i] - a*b*other[i-(n-m)]) % P
+				# print("    in:", f.coeffs[i], - a*b*other[i-(n-m)])
+				f.coeffs[i] = (f.coeffs[i] - a*b*other[i-(n-m)]) % P
+				# print("    out:", f.coeffs[i])
 
-				if self.coeffs[i] == 0 and not uneq0:
+				if f.coeffs[i] == 0 and not uneq0:
 					new_n = new_n-1
 				else:
 					uneq0 = True # as long as the coeff is 0 we decrease the degree
 			n = new_n
+			# print("    g:", f)
 
-		# cancel highest coeff as long as m <= n
-		return self.prune()
+		return f.prune()
 
 	def is_divisible_by(self, other):
 		return (self % other).degree() == -1
@@ -131,6 +124,9 @@ class Polynom:
 	# removes 0s
 	def prune(self):
 		n = self.degree()
+		if n == -1:
+			return self
+
 		while self[n] == 0 and n >= 0:
 			n = n - 1
 
@@ -181,9 +177,12 @@ class Polynom:
 		return str(self)
 
 	def __hash__(self):
+		n = len(str(self.P))
 		s = ""
 		for a in reversed(self.coeffs):
-			s += str(a)
+			x = str(a)
+			while len(x) < n: x = '0' + x
+			s += x
 
 		if s == "":
 			return 0
@@ -232,11 +231,14 @@ class Field:
 		self.find_field()
 
 		t1 = time.time()
-		print("time", t1-t0)
+		print(f"found polynomial: {t1-t0}s")
 
-		# self.print_symbol_tables()
-		labels = pow(N,P) < 10
-		self.print_number_tables(labels)
+		self.calculate_tables()
+		t2 = time.time()
+		print(f"calculated tables: {t2-t1}")
+		print(f"total time: {t2-t0}s")
+
+		self.plot()
 
 
 	def find_field(self):
@@ -263,17 +265,37 @@ class Field:
 		# print(self.f)
 		# print(self.elems, len(self.elems))
 
-	def print_number_tables(self, labels=False):
+	def calculate_tables(self):
 		for (i,x) in enumerate(self.elems):
 			self.numbers[x] = i
 
+		count = 0
+		total = pow(self.P, self.N * 2)
 		for (i,x) in enumerate(self.elems):
 			for (j,y) in enumerate(self.elems):
 				r = (x * y) % self.f
 				s = (x + y) % self.f
 				self.multiplication[i][j] = self.numbers[r]
 				self.addition[i][j] = self.numbers[s]
+				count += 1
+				sys.stdout.write(f"{count}/{total} operations done...")
+				sys.stdout.flush()
 
+
+
+		# for (i,x) in enumerate(self.elems):
+		# 	print(x, ",\thash:", hash(x), ",\tnum:", self.numbers[x])
+
+		# n = pow(P,N)
+		# if labels:
+		# 	for i in range(0, n):
+		# 		for j in range(0, n):
+		# 			a = self.addition[i][j]
+		# 			m = self.multiplication[i][j]
+		# 			ax[I][N].text(i, j, str(int(a)), va='center', ha='center')
+		# 			ax[J][N].text(i, j, str(int(m)), va='center', ha='center')
+
+	def plot(self):
 		P = self.P
 		N = self.N
 
@@ -292,14 +314,6 @@ class Field:
 
 		plt.show()
 
-		# n = pow(P,N)
-		# if labels:
-		# 	for i in range(0, n):
-		# 		for j in range(0, n):
-		# 			a = self.addition[i][j]
-		# 			m = self.multiplication[i][j]
-		# 			ax[I][N].text(i, j, str(int(a)), va='center', ha='center')
-		# 			ax[J][N].text(i, j, str(int(m)), va='center', ha='center')
 
 	def print_symbol_tables(self):
 		abc = list(string.ascii_lowercase)
@@ -364,6 +378,7 @@ class Field:
 		if i == 0:
 			for k in range(0, P):
 				f.coeffs[i] = k
+				# print("f:", f, f.degree(), ", r:", q % f)
 				if q.is_divisible_by(f):
 					if self.is_irreducible(f):
 						self.f = f
@@ -413,10 +428,10 @@ class Field:
 # 		gj = gp[j].subgridspec(1,2)
 # 		Field(N=j, P=p)
 
-# Field(N=N,P=P)
+Field(N=N,P=P)
 
-f = Polynom("1x^0 + 1x^1 + 1x^4", P)
-g = Polynom("-1x^1 + 1x^2401", P)
+# f = Polynom("1x^0 + 1x^1 + 1x^4", P)
+# g = Polynom("-1x^1 + 1x^2401", P)
 
-print(g % f)
+# print(g % f)
 
