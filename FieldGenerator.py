@@ -12,7 +12,7 @@ import sys
 from multiprocessing import Pool
 import os
 import itertools
-from multiprocessing import sharedctypes
+import tqdm
 
 class Polynom:
 
@@ -254,10 +254,10 @@ class Field:
 
 		if not tables_loaded:
 			self.calculate_tables()
-			self.calculate_orders()
 			t2 = time.time()
 			print(f"calculated tables: {t2-t1}")
 
+			self.calculate_orders()
 		self.find_primitve_element()
 
 		t3 = time.time()
@@ -311,27 +311,30 @@ class Field:
 
 			params = list(filter(predicate, domain))
 
-			total = len(params)
-
 			t1 = time.time()
-
 			print(f"parameter generated: {t1-t0}s")
 
-			res = pool.map(self.calculate, params)
+			total = len(params)
 
+			print("calculating operations:")
+			# res = pool.map(self.calculate, params)
+			chunksize = self.calc_chunksize(os.cpu_count(),total)
+			res = list(tqdm.tqdm(pool.imap_unordered(self.calculate, params, chunksize=chunksize), total=total))
+		
 			pool.close()
 
-			for (i,j,rn, sn) in res:
+			for (i,j,rn,sn) in res:
 				self.multiplication[i][j] = rn
 				self.multiplication[j][i] = rn
 				self.addition[i][j] = sn
 				self.addition[j][i] = sn
+				
 
 
 		else:
 			count = 0
 			total = int(len(self.elems) * (len(self.elems)+1)  / 2)
-			t0 = time.time()
+			# t0 = time.time()
 			for (i,x) in enumerate(self.elems):
 				eta = None
 				for (j,y) in enumerate(self.elems):
@@ -339,8 +342,13 @@ class Field:
 						continue
 					self.calculate(((i,x),(j,y)))
 					count += 1
-					self.print_progress(count, total, t0)
+					self.print_progress(count, total)
 
+	def calc_chunksize(self, n_workers, len_iterable, factor=4):
+	    chunksize, extra = divmod(len_iterable, n_workers * factor)
+	    if extra:
+	        chunksize += 1
+	    return chunksize
 
 	def calculate(self, params):
 		(i,x), (j,y) = params
@@ -371,7 +379,7 @@ class Field:
 		tmp1[i][j] = sn
 		tmp1[j][i] = sn
 
-	def print_progress(self, count, total, t0):
+	def print_progress(self, count, total):
 		# t = time.time() - t0
 		progress = round(100* count/total)
 		# eta = round(t / (progress+0.001) * 100 - t)
@@ -380,12 +388,12 @@ class Field:
 	def cache_tables(self):
 		np.savetxt(f"cache/{self.P}^{self.N}_add.txt", self.addition, fmt='%i')
 		np.savetxt(f"cache/{self.P}^{self.N}_mul.txt", self.multiplication, fmt='%i')
-		np.savetxt(f"cache/{self.P}^{self.N}_ord.txt", self.orders, fmt='%i')
+		# np.savetxt(f"cache/{self.P}^{self.N}_ord.txt", self.orders, fmt='%i')
 
 	def load_tables_from_cache(self):
 		self.addition = np.loadtxt(f"cache/{P}^{N}_add.txt")
 		self.multiplication = np.loadtxt(f"cache/{P}^{N}_mul.txt")
-		self.orders = np.loadtxt(f"cache/{P}^{N}_ord.txt")
+		# self.orders = np.loadtxt(f"cache/{P}^{N}_ord.txt")
 
 	def plot(self, labels = False):
 		P = self.P
