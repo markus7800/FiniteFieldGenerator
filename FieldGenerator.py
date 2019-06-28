@@ -257,7 +257,7 @@ class Field:
 			t2 = time.time()
 			print(f"calculated tables: {t2-t1}")
 
-			self.calculate_orders()
+		self.calculate_orders()
 		self.find_primitve_element()
 
 		t3 = time.time()
