@@ -241,9 +241,7 @@ class Field:
 		tables_loaded = False
 
 		try:
-			self.addition = np.loadtxt(f"cache/{P}^{N}_add.txt")
-			self.multiplication = np.loadtxt(f"cache/{P}^{N}_mul.txt")
-			self.orders = np.loadtxt(f"cache/{P}^{N}_ord.txt")
+			self.load_tables_from_cache()
 			tables_loaded = True
 		except:
 			pass
@@ -266,7 +264,7 @@ class Field:
 		print(f"total time: {t3-t0}s")
 
 		if not tables_loaded:
-			self.save_to_csv()
+			self.cache_tables()
 
 		self.plot()
 
@@ -379,10 +377,15 @@ class Field:
 		# eta = round(t / (progress+0.001) * 100 - t)
 		sys.stderr.write(f"{count}/{total} ({progress}%) operations done...\r")
 
-	def save_to_csv(self):
+	def cache_tables(self):
 		np.savetxt(f"cache/{self.P}^{self.N}_add.txt", self.addition, fmt='%i')
 		np.savetxt(f"cache/{self.P}^{self.N}_mul.txt", self.multiplication, fmt='%i')
 		np.savetxt(f"cache/{self.P}^{self.N}_ord.txt", self.orders, fmt='%i')
+
+	def load_tables_from_cache(self):
+		self.addition = np.loadtxt(f"cache/{P}^{N}_add.txt")
+		self.multiplication = np.loadtxt(f"cache/{P}^{N}_mul.txt")
+		self.orders = np.loadtxt(f"cache/{P}^{N}_ord.txt")
 
 	def plot(self, labels = False):
 		P = self.P
@@ -390,7 +393,11 @@ class Field:
 
 		fig, (ax0, ax1) = plt.subplots(1, 2, constrained_layout=True)
 
-		fig.suptitle(r"$F_{" + str(pow(P,N)) + r"} = F_{" + f"{P}^{N}"  + r"} \cong \mathbb{Z}_{" + str(P) + r"}[x] / (" + str(self.f) + ")$", fontsize=20, fontweight='bold')
+		s = r"$F_{" + str(pow(P,N)) + r"} = F_{" + f"{P}^{N}" 
+		s += r"}\cong \mathbb{Z}_{" + str(P) + r"}[x] / (" + str(self.f)
+		s +=  r") = \langle " +  str(self.primitive_elem) + r" \rangle $"
+
+		fig.suptitle(s, fontsize=20, fontweight='bold', y=0.985)
 		
 		# ax0 = fig.add_subplot(gj[0])
 		# ax1 = fig.add_subplot(gj[1])
@@ -519,12 +526,13 @@ class Field:
 				elem = x
 				order = o
 
-		print(f"primitive element: {i} = {elem}")
+		# print(f"primitive element: {i} = {elem}")
+		self.primitive_elem = elem
 
-		j = i
-		for n in range(2, len(self.elems)):
-			j = int(self.multiplication[j][i])
-			print(f"({elem})^{n}\t=\t{self.elems[j]}\t=\t{j}")
+		# j = i
+		# for n in range(2, len(self.elems)):
+		# 	j = int(self.multiplication[j][i])
+		# 	print(f"({elem})^{n}\t=\t{self.elems[j]}\t\t=\t{j}")
 
 
 
