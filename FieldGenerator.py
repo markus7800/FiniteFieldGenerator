@@ -413,8 +413,8 @@ class Field:
 		ax0.matshow(self.addition, cmap=plt.cm.Blues) # 
 		ax1.matshow(self.multiplication, cmap=plt.cm.Blues)
 
-		ax0.set_title('+',y=1.1)
-		ax1.set_title('*', y=1.1)
+		ax0.set_title(r"$(F_{" + str(pow(P,N)) + r"},+) \cong C_{" + str(P) + r"}^" + str(N) + r"$",y=1.1)
+		ax1.set_title(r"$(F_{" + str(pow(P,N)) + r"}  \backslash \{ 0 \},*) \cong C_{" + str(pow(P,N)-1) + r"}$", y=1.1)
 
 		# for (i,x) in enumerate(self.elems):
 		# 	print(x, ",\thash:", hash(x), ",\tnum:", self.numbers[x])
