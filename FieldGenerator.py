@@ -2,6 +2,7 @@
 
 P = int(input("prime number: "))
 N = int(input("natural number: "))
+b = bool(input("use cache: "))
 
 import copy
 import string
@@ -221,7 +222,7 @@ def greatest_divisor(x):
 
 class Field:
 
-	def __init__(self, N, P):
+	def __init__(self, N, P, cache_tables):
 
 		self.N = N
 		self.P = P
@@ -240,11 +241,12 @@ class Field:
 
 		tables_loaded = False
 
-		try:
-			self.load_tables_from_cache()
-			tables_loaded = True
-		except:
-			pass
+		if cache_tables:
+			try:
+				self.load_tables_from_cache()
+				tables_loaded = True
+			except:
+				pass
 
 
 		self.find_field()
@@ -263,7 +265,7 @@ class Field:
 		t3 = time.time()
 		print(f"total time: {t3-t0}s")
 
-		if not tables_loaded:
+		if not tables_loaded and cache_tables:
 			self.cache_tables()
 
 		self.plot()
@@ -567,6 +569,6 @@ class Field:
 
 
 if __name__ == '__main__':
-	Field(N=N,P=P)
+	Field(N=N,P=P,cache_tables=b)
 
 
